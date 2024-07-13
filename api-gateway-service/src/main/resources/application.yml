@@ -1,0 +1,128 @@
+---
+eureka:
+  instance:
+    client:
+      serviceUrl:
+        defaultZone: http://localhost:8761/eureka/
+    instance-id: ${spring.application.name}:${random.uuid}
+
+management:
+  tracing:
+    sampling:
+      probability: 1
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+    health:
+      show-details: always
+
+#resilience4j:
+#  circuitbreaker:
+#    configs:
+#      default:
+#        registerHealthIndicator: true
+#    instances:
+#      CircuitBreaker:
+#        registerHealthIndicator: true
+#        eventConsumerBufferSize: 10
+#        failureRateThreshold: 50
+#        minimumNumberOfCalls: 5
+#        automaticTransitionFromOpenToHalfOpenEnabled: true
+#        waitDurationInOpenState: 5s
+#        permittedNumberOfCallsInHalfOpenState: 3
+#        slidingWindowSize: 10
+#        slidingWindowType: COUNT_BASED
+
+resilience4j.circuitbreaker:
+  configs:
+    default:
+      registerHealthIndicator: true
+
+server:
+  port: 9191
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty.http.client: DEBUG
+redis:
+  host: 172.17.0.4
+  port: 6379
+spring:
+  application:
+    name: API-GATEWAY
+  main:
+    allow-bean-definition-overriding: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/spring-microservice-realm
+          jwk-set-uri: http://localhost:8080/realms/spring-microservice-realm/protocol/openid-connect/certs
+  cloud:
+    gateway:
+      routes:
+        - id: product-service
+          predicates:
+            - Path=/api/v1/products/**
+            - Method=GET,POST,PUT,DELETE
+          uri: lb://product-service
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: product-serviceCircuitBreaker
+                fallbackUri: forward:/fallback/productsServiceFallBack
+#            - name: RequestRateLimiter
+#              args:
+#                redis-rate-limiter.replenishRate: 3
+#                redis-rate-limiter.burstCapacity: 5
+#                redis-rate-limiter.requestedTokens: 1
+        - id: order-service
+          predicates:
+            - Path=/api/v1/orders/**
+            - Method=GET,POST,PUT,DELETE
+          uri: lb://order-service
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: order-serviceCircuitBreaker
+                fallbackUri: forward:/fallback/orderServiceFallBack
+#            - name: RequestRateLimiter
+#              args:
+#                redis-rate-limiter.replenishRate: 3
+#                redis-rate-limiter.burstCapacity: 5
+#                redis-rate-limiter.requestedTokens: 1
+        - id: inventory-service
+          predicates:
+            - Path=/api/v1/inventory/**
+            - Method=GET,POST,PUT,DELETE
+          uri: lb://inventory-service
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: inventory-serviceCircuitBreaker
+                fallbackUri: forward:/fallback/inventoryServiceFallBack
+#            - name: RequestRateLimiter
+#              args:
+#                redis-rate-limiter.replenishRate: 3
+#                redis-rate-limiter.burstCapacity: 5
+#                redis-rate-limiter.requestedTokens: 1
+        - id: notification-service
+          predicates:
+            - Path=/api/v1/notification/**
+            - Method=GET,POST,PUT,DELETE
+          uri: lb://notification-service
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: notification-serviceCircuitBreaker
+                fallbackUri: forward:/fallback/notificationServiceFallBack
+#            - name: RequestRateLimiter
+#              args:
+#                redis-rate-limiter.replenishRate: 3
+#                redis-rate-limiter.burstCapacity: 5
+#                redis-rate-limiter.requestedTokens: 1

@@ -1,0 +1,181 @@
+version: '3.2'
+
+services:
+  registry-app:
+    container_name: discovery-registry
+    image: discovery-registry
+    build: ./service-registry
+    ports:
+      - "8761:8761"
+    networks:
+      - spring-micros-revision-network
+
+  config-app:
+    container_name: config-service
+    image: config-service
+    build: ./config-server
+    ports:
+      - "8888:8888"
+    networks:
+      - spring-micros-revision-network
+
+  product-app:
+    container_name: product-service
+    image: product-service
+    build: ./product-service
+    ports:
+      - "8020:8020"
+    depends_on:
+      - db
+      - config-app
+      - elasticsearch
+      - logstash
+      - kibana
+      - registry-app
+    networks:
+      - spring-micros-revision-network
+
+#  order-app:
+#    container_name: order-service
+#    image: order-service
+#    build: ./order-service
+#    ports:
+#      - "8050:8050"
+#    depends_on:
+#      - db
+#      - config-app
+#      - elasticsearch
+#      - logstash
+#      - kibana
+#      - registry-app
+#    networks:
+#      - spring-micros-revision-network
+#
+#  notification-app:
+#    container_name: notification-service
+#    image: notification-service
+#    build: ./notification-service
+#    ports:
+#      - "8060:8060"
+#    depends_on:
+#      - config-app
+#      - elasticsearch
+#      - logstash
+#      - kibana
+#      - registry-app
+#    networks:
+#      - spring-micros-revision-network
+
+#  inventory-app:
+#    container_name: inventory-service
+#    image: inventory-service
+#    build: ./inventory-service
+#    ports:
+#      - "8030:8030"
+#    depends_on:
+#      - db
+#      - config-app
+#      - elasticsearch
+#      - logstash
+#      - kibana
+#      - registry-app
+#    networks:
+#      - spring-micros-revision-network
+
+#  gateway-app:
+#    container_name: gateway-service
+#    image: gateway-service
+#    build: ../api-gateway-service
+#    ports:
+#      - "9191:9191"
+#    depends_on:
+#      - db
+#      - config-app
+#      - elasticsearch
+#      - logstash
+##      - inventory-app
+##      - notification-app
+#      - product-app
+##      - order-app
+#      - registry-app
+#    networks:
+#      - spring-micros-revision-network
+
+  db:
+    container_name: db
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=dadinos
+      - POSTGRES_DB=micro_revisions_db
+    volumes:
+      - db:/var/lib/postgres
+    networks:
+      - spring-micros-revision-network
+
+  elasticsearch:
+    container_name: elasticsearch
+    image: elasticsearch:7.17.17
+    volumes:
+      - type: volume
+        source: elasticsearch
+        target: /usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ELASTIC_PASSWORD: changeme
+      discovery.type: single-node
+    networks:
+      - spring-micros-revision-network
+
+  logstash:
+    container_name: logstash
+    image: logstash:7.17.17
+    volumes:
+      - type: bind
+        source: .logstash
+        target: /usr/share/logstash/pipeline
+        read_only: true
+    ports:
+      - "5044:5044"
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
+      - "4560:4560"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    networks:
+      - spring-micros-revision-network
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    container_name: kibana
+    image: kibana:7.17.17
+    ports:
+      - "5601:5601"
+    networks:
+      - spring-micros-revision-network
+    depends_on:
+      - elasticsearch
+
+#  rabbitmq:
+#    container_name: rabbitmq
+#    image: rabbitmq:3.13-management
+#    ports:
+#      - "5672:5672"
+#      - "15672:15672"
+#    networks:
+#      - spring-micros-revision-network
+
+networks:
+  spring-micros-revision-network:
+    driver: bridge
+
+volumes:
+  db:
+  elasticsearch:
